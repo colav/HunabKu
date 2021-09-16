@@ -2,17 +2,24 @@ from hunabku.HunabkuBase import HunabkuPluginBase, endpoint
 import pandas as pd
 import cx_Oracle
 import os
+import sys
 
 class Scienti(HunabkuPluginBase):
     def __init__(self, hunabku):
         super().__init__(hunabku)
+        envs=["CVLAC_USER","GRUPLAC_USER","INSTITULAC_USER","ORACLE_PWD"]
+        for var in envs:
+            if var not in os.environ:
+                print(f"Error: {var} not defined in the environment.")
+                sys.exit(1)
+
         self.CVLAC_USER = os.environ["CVLAC_USER"]
         self.GRUPLAC_USER = os.environ["GRUPLAC_USER"]
         self.INSTITULAC_USER = os.environ["INSTITULAC_USER"]
-        PASSWORD = os.environ["PASSWORD"]
+        ORACLE_PWD = os.environ["ORACLE_PWD"]
         self.oracle_db = cx_Oracle.connect(
         user="system",
-        password=PASSWORD,
+        password=ORACLE_PWD,
         dsn="localhost:1521")
         self.cvlac_tables = pd.read_sql(f"SELECT * FROM all_tables WHERE OWNER='{self.CVLAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
         self.grublac_tables = pd.read_sql(f"SELECT * FROM all_tables WHERE OWNER='{self.GRUPLAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
@@ -23,11 +30,11 @@ class Scienti(HunabkuPluginBase):
         """
         @api {get} /scienti/info Scienti info endpoint
         @apiName Scienti
-        @apiGroup Scienti Info
+        @apiGroup Scienti
         @apiDescription information current Scienti database, such as users and tables for each database. 
                         This plugin have to be extecute inside the oracle container to do the local connection to
                         Oracle and to read the credention from the environmental variables, 
-                        such as CVLAC_USER, GRUPLAC_USER, INSTITULAC_USER and PASSWORD.
+                        such as CVLAC_USER, GRUPLAC_USER, INSTITULAC_USER and ORACLE_PWD.
                         JSON was the format decided to return to avoid errors with csv due the separator.
 
         @apiParam {String} apikey  Credential for authentication
@@ -57,7 +64,7 @@ class Scienti(HunabkuPluginBase):
         """
         @api {get} /scienti/cvlac CVLaC data endpoint
         @apiName Scienti
-        @apiGroup Scienti CVLaC
+        @apiGroup Scienti
         @apiDescription information from queries made to CVLaC to OracleDB.
 
         @apiParam {String} apikey  Credential for authentication
@@ -94,7 +101,7 @@ class Scienti(HunabkuPluginBase):
         """
         @api {get} /scienti/gruplac GrupLaC data endpoint
         @apiName Scienti
-        @apiGroup Scienti GrupLaC
+        @apiGroup Scienti
         @apiDescription information from queries made to GrupLaC to OracleDB.
 
         @apiParam {String} apikey  Credential for authentication
@@ -131,7 +138,7 @@ class Scienti(HunabkuPluginBase):
         """
         @api {get} /scienti/institulac InstituLaC data endpoint
         @apiName Scienti
-        @apiGroup Scienti InstituLaC
+        @apiGroup Scienti
         @apiDescription information from queries made to InstituLaC to OracleDB
 
         @apiParam {String} apikey  Credential for authentication

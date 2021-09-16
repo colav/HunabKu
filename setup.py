@@ -80,6 +80,7 @@ def main():
 
         # Dependent packages (distributions)
         install_requires=[
+            'cx_Oracle>=8.2.1',
             'pymongo>=3.10.1',
             'flask>=1.1.2',
             'pandas',

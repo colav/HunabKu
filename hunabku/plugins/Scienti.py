@@ -29,7 +29,7 @@ class Scienti(HunabkuPluginBase):
     def scienti_info(self):
         """
         @api {get} /scienti/info Scienti info endpoint
-        @apiName Scienti
+        @apiName Info
         @apiGroup Scienti
         @apiDescription information current Scienti database, such as users and tables for each database. 
                         This plugin have to be extecute inside the oracle container to do the local connection to
@@ -63,7 +63,7 @@ class Scienti(HunabkuPluginBase):
     def scienti_cvlac(self):
         """
         @api {get} /scienti/cvlac CVLaC data endpoint
-        @apiName Scienti
+        @apiName CVLaC
         @apiGroup Scienti
         @apiDescription information from queries made to CVLaC to OracleDB.
 
@@ -100,7 +100,7 @@ class Scienti(HunabkuPluginBase):
     def scienti_gruplac(self):
         """
         @api {get} /scienti/gruplac GrupLaC data endpoint
-        @apiName Scienti
+        @apiName GrupLaC
         @apiGroup Scienti
         @apiDescription information from queries made to GrupLaC to OracleDB.
 
@@ -137,7 +137,7 @@ class Scienti(HunabkuPluginBase):
     def scienti_institulac(self):
         """
         @api {get} /scienti/institulac InstituLaC data endpoint
-        @apiName Scienti
+        @apiName Institulac
         @apiGroup Scienti
         @apiDescription information from queries made to InstituLaC to OracleDB
 

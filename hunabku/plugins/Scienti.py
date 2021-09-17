@@ -25,6 +25,18 @@ class Scienti(HunabkuPluginBase):
         self.grublac_tables = pd.read_sql(f"SELECT * FROM all_tables WHERE OWNER='{self.GRUPLAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
         self.institulac_tables = pd.read_sql(f"SELECT * FROM all_tables WHERE OWNER='{self.INSTITULAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
 
+    def rename_duplicate_cols(sefl,df):
+        cols=pd.Series(df.columns)
+        #https://stackoverflow.com/questions/24685012/pandas-dataframe-renaming-multiple-identically-named-columns
+        for dup in df.columns[df.columns.duplicated(keep=False)]: 
+            cols[df.columns.get_loc(dup)] = ([dup + '.' + str(d_idx) 
+                                     if d_idx != 0 
+                                     else dup 
+                                     for d_idx in range(df.columns.get_loc(dup).sum())]
+                                    )
+        df.columns=cols
+        return df
+
     @endpoint('/scienti/query', methods=['GET'])
     def scienti_query(self):
         """
@@ -44,9 +56,9 @@ class Scienti(HunabkuPluginBase):
         
         if self.valid_apikey():
             query = self.request.args.get('request')
-            print(query)
             try:
                 df = pd.read_sql(query, con=self.oracle_db)
+                df = self.rename_duplicate_cols(df)
                 data = df.to_json(orient='records')
                 response = self.app.response_class(
                     response=data,
@@ -55,10 +67,9 @@ class Scienti(HunabkuPluginBase):
                 )
                 return response
             except:
-                print(sys.exc_info())
-                data={"error":"Bad Request","message":str(sys.exc_info()[0])}
+                data={"error":"Bad Request","message":str(sys.exc_info())}
                 response = self.app.response_class(
-                    response=data,
+                    response=self.json.dumps(data),
                     status=400,
                     mimetype='application/json'
                 )
@@ -193,7 +204,6 @@ class Scienti(HunabkuPluginBase):
             if table in self.institulac_tables:
                 query=f"select distinct * from {self.INSTITULAC_USER}.{table}"
                 df = pd.read_sql(query, con=self.oracle_db)
-                df.reset_index(drop=True, inplace=True)
                 data = df.to_json(orient='records')
                 response = self.app.response_class(
                     response=data,

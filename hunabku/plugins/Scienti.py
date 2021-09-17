@@ -25,6 +25,47 @@ class Scienti(HunabkuPluginBase):
         self.grublac_tables = pd.read_sql(f"SELECT * FROM all_tables WHERE OWNER='{self.GRUPLAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
         self.institulac_tables = pd.read_sql(f"SELECT * FROM all_tables WHERE OWNER='{self.INSTITULAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
 
+    @endpoint('/scienti/query', methods=['GET'])
+    def scienti_query(self):
+        """
+        @api {get} /scienti/query Scienti query endpoint
+        @apiName Query
+        @apiGroup Scienti
+        @apiDescription Allows to perform any query to the db, but the query have to have the right db name, table name and relationship.
+                        you can see dbs and tables on the endpoint info
+
+        @apiParam {String} apikey  Credential for authentication
+        @apiParam {String} request  SQL query
+        @apiSuccess {Object}  Resgisters from OracleDB in Json format.
+
+        @apiError (Error 401) msg  The HTTP 401 Unauthorized invalid authentication apikey for the target resource.
+        @apiError (Error 400) msg  Bad request, if the query is not right.
+        """
+        
+        if self.valid_apikey():
+            query = self.request.args.get('request')
+            print(query)
+            try:
+                df = pd.read_sql(query, con=self.oracle_db)
+                data = df.to_json(orient='records')
+                response = self.app.response_class(
+                    response=data,
+                    status=200,
+                    mimetype='application/json'
+                )
+                return response
+            except:
+                print(sys.exc_info())
+                data={"error":"Bad Request","message":str(sys.exc_info()[0])}
+                response = self.app.response_class(
+                    response=data,
+                    status=400,
+                    mimetype='application/json'
+                )
+                return response
+        else:
+            return self.apikey_error()
+
     @endpoint('/scienti/info', methods=['GET'])
     def scienti_info(self):
         """
@@ -149,9 +190,10 @@ class Scienti(HunabkuPluginBase):
         """
         table = self.request.args.get('table')
         if self.valid_apikey():
-            if table in self.grublac_tables:
+            if table in self.institulac_tables:
                 query=f"select distinct * from {self.INSTITULAC_USER}.{table}"
                 df = pd.read_sql(query, con=self.oracle_db)
+                df.reset_index(drop=True, inplace=True)
                 data = df.to_json(orient='records')
                 response = self.app.response_class(
                     response=data,

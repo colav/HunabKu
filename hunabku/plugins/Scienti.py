@@ -4,10 +4,11 @@ import cx_Oracle
 import os
 import sys
 
+
 class Scienti(HunabkuPluginBase):
     def __init__(self, hunabku):
         super().__init__(hunabku)
-        envs=["CVLAC_USER","GRUPLAC_USER","INSTITULAC_USER","ORACLE_PWD"]
+        envs = ["CVLAC_USER", "GRUPLAC_USER", "INSTITULAC_USER", "ORACLE_PWD"]
         for var in envs:
             if var not in os.environ:
                 print(f"Error: {var} not defined in the environment.")
@@ -18,23 +19,26 @@ class Scienti(HunabkuPluginBase):
         self.INSTITULAC_USER = os.environ["INSTITULAC_USER"]
         ORACLE_PWD = os.environ["ORACLE_PWD"]
         self.oracle_db = cx_Oracle.connect(
-        user="system",
-        password=ORACLE_PWD,
-        dsn="localhost:1521")
-        self.cvlac_tables = pd.read_sql(f"SELECT * FROM all_tables WHERE OWNER='{self.CVLAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
-        self.grublac_tables = pd.read_sql(f"SELECT * FROM all_tables WHERE OWNER='{self.GRUPLAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
-        self.institulac_tables = pd.read_sql(f"SELECT * FROM all_tables WHERE OWNER='{self.INSTITULAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
+            user="system",
+            password=ORACLE_PWD,
+            dsn="localhost:1521")
+        self.cvlac_tables = pd.read_sql(
+            f"SELECT * FROM all_tables WHERE OWNER='{self.CVLAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
+        self.grublac_tables = pd.read_sql(
+            f"SELECT * FROM all_tables WHERE OWNER='{self.GRUPLAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
+        self.institulac_tables = pd.read_sql(
+            f"SELECT * FROM all_tables WHERE OWNER='{self.INSTITULAC_USER}'", con=self.oracle_db)["TABLE_NAME"].values.tolist()
 
-    def rename_duplicate_cols(sefl,df):
-        cols=pd.Series(df.columns)
-        #https://stackoverflow.com/questions/24685012/pandas-dataframe-renaming-multiple-identically-named-columns
-        for dup in df.columns[df.columns.duplicated(keep=False)]: 
-            cols[df.columns.get_loc(dup)] = ([dup + '.' + str(d_idx) 
-                                     if d_idx != 0 
-                                     else dup 
-                                     for d_idx in range(df.columns.get_loc(dup).sum())]
-                                    )
-        df.columns=cols
+    def rename_duplicate_cols(sefl, df):
+        cols = pd.Series(df.columns)
+        # https://stackoverflow.com/questions/24685012/pandas-dataframe-renaming-multiple-identically-named-columns
+        for dup in df.columns[df.columns.duplicated(keep=False)]:
+            cols[df.columns.get_loc(dup)] = ([dup + '.' + str(d_idx)
+                                              if d_idx != 0
+                                              else dup
+                                              for d_idx in range(df.columns.get_loc(dup).sum())]
+                                             )
+        df.columns = cols
         return df
 
     @endpoint('/scienti/query', methods=['GET'])
@@ -48,18 +52,23 @@ class Scienti(HunabkuPluginBase):
 
         @apiParam {String} apikey  Credential for authentication
         @apiParam {String} request  SQL query
+        @apiParam {String} orient  data orientation "split or records", default records (More common but more expensive in memory)
         @apiSuccess {Object}  Resgisters from OracleDB in Json format.
 
         @apiError (Error 401) msg  The HTTP 401 Unauthorized invalid authentication apikey for the target resource.
         @apiError (Error 400) msg  Bad request, if the query is not right.
         """
-        
+
         if self.valid_apikey():
             query = self.request.args.get('request')
+            orient = self.request.args.get('orient')
+            if orient is None:
+                orient = "records"
             try:
                 df = pd.read_sql(query, con=self.oracle_db)
-                df = self.rename_duplicate_cols(df)
-                data = df.to_json(orient='records')
+                if orient == "records":
+                    df = self.rename_duplicate_cols(df)
+                data = df.to_json(orient=orient)
                 response = self.app.response_class(
                     response=data,
                     status=200,
@@ -67,7 +76,7 @@ class Scienti(HunabkuPluginBase):
                 )
                 return response
             except:
-                data={"error":"Bad Request","message":str(sys.exc_info())}
+                data = {"error": "Bad Request", "message": str(sys.exc_info())}
                 response = self.app.response_class(
                     response=self.json.dumps(data),
                     status=400,
@@ -95,13 +104,13 @@ class Scienti(HunabkuPluginBase):
         @apiError (Error 401) msg  The HTTP 401 Unauthorized invalid authentication apikey for the target resource.
         """
         if self.valid_apikey():
-            data={}
-            data["CVLAC_USER"]=self.CVLAC_USER
-            data["GRUPLAC_USER"]=self.GRUPLAC_USER
-            data["INSTITULAC_USER"]=self.INSTITULAC_USER
-            data["CVLAC_TABLES"]=self.cvlac_tables
-            data["GRUPLAC_TABLES"]=self.grublac_tables
-            data["INSTITULAC_TABLES"]=self.institulac_tables
+            data = {}
+            data["CVLAC_USER"] = self.CVLAC_USER
+            data["GRUPLAC_USER"] = self.GRUPLAC_USER
+            data["INSTITULAC_USER"] = self.INSTITULAC_USER
+            data["CVLAC_TABLES"] = self.cvlac_tables
+            data["GRUPLAC_TABLES"] = self.grublac_tables
+            data["INSTITULAC_TABLES"] = self.institulac_tables
             response = self.app.response_class(
                 response=self.json.dumps(data),
                 status=200,
@@ -121,16 +130,20 @@ class Scienti(HunabkuPluginBase):
 
         @apiParam {String} apikey  Credential for authentication
         @apiParam {String} table  DB table required, if table="info" the list of tables available will be returned.
+        @apiParam {String} orient  data orientation "split or records", default records (More common but more expensive in memory)
         @apiSuccess {Object}  Resgisters from OracleDB in Json format.
 
         @apiError (Error 401) msg  The HTTP 401 Unauthorized invalid authentication apikey for the target resource.
         """
         table = self.request.args.get('table')
+        orient = self.request.args.get('orient')
+        if orient is None:
+            orient = "records"
         if self.valid_apikey():
             if table in self.cvlac_tables:
-                query=f"select distinct * from {self.CVLAC_USER}.{table}"
+                query = f"select distinct * from {self.CVLAC_USER}.{table}"
                 df = pd.read_sql(query, con=self.oracle_db)
-                data = df.to_json(orient='records')
+                data = df.to_json(orient=orient)
                 response = self.app.response_class(
                     response=data,
                     status=200,
@@ -139,14 +152,14 @@ class Scienti(HunabkuPluginBase):
                 return response
             else:
                 response = self.app.response_class(
-                    response=self.json.dumps({"error":"Bad Request","message":"table {table} not found on CVLAC, see available tables in tables_available","tables_available":self.cvlac_tables}),
+                    response=self.json.dumps(
+                        {"error": "Bad Request", "message": "table {table} not found on CVLAC, see available tables in tables_available", "tables_available": self.cvlac_tables}),
                     status=400,
                     mimetype='application/json'
                 )
                 return response
         else:
             return self.apikey_error()
-
 
     @endpoint('/scienti/gruplac', methods=['GET'])
     def scienti_gruplac(self):
@@ -158,16 +171,20 @@ class Scienti(HunabkuPluginBase):
 
         @apiParam {String} apikey  Credential for authentication
         @apiParam {String} table  DB table required, if table="info" the list of tables available will be returned.
+        @apiParam {String} orient  data orientation "split or records", default records (More common but more expensive in memory)
         @apiSuccess {Object}  Resgisters from OracleDB in Json format.
 
         @apiError (Error 401) msg  The HTTP 401 Unauthorized invalid authentication apikey for the target resource.
         """
         table = self.request.args.get('table')
+        orient = self.request.args.get('orient')
+        if orient is None:
+            orient = "records"
         if self.valid_apikey():
             if table in self.grublac_tables:
-                query=f"select distinct * from {self.GRUPLAC_USER}.{table}"
+                query = f"select distinct * from {self.GRUPLAC_USER}.{table}"
                 df = pd.read_sql(query, con=self.oracle_db)
-                data = df.to_json(orient='records')
+                data = df.to_json(orient=orient)
                 response = self.app.response_class(
                     response=data,
                     status=200,
@@ -176,14 +193,14 @@ class Scienti(HunabkuPluginBase):
                 return response
             else:
                 response = self.app.response_class(
-                    response=self.json.dumps({"error":"Bad Request","message":"table {table} not found on GRUBLAC, see available tables in tables_available","tables_available":self.grublac_tables}),
+                    response=self.json.dumps(
+                        {"error": "Bad Request", "message": "table {table} not found on GRUBLAC, see available tables in tables_available", "tables_available": self.grublac_tables}),
                     status=400,
                     mimetype='application/json'
                 )
                 return response
         else:
             return self.apikey_error()
-
 
     @endpoint('/scienti/institulac', methods=['GET'])
     def scienti_institulac(self):
@@ -195,16 +212,20 @@ class Scienti(HunabkuPluginBase):
 
         @apiParam {String} apikey  Credential for authentication
         @apiParam {String} table  DB table required, if table="info" the list of tables available will be returned.
+        @apiParam {String} orient  data orientation "split or records", default records (More common but more expensive in memory)
         @apiSuccess {Object}  Resgisters from OracleDB in Json format.
 
         @apiError (Error 401) msg  The HTTP 401 Unauthorized invalid authentication apikey for the target resource.
         """
         table = self.request.args.get('table')
+        orient = self.request.args.get('orient')
+        if orient is None:
+            orient = "records"
         if self.valid_apikey():
             if table in self.institulac_tables:
-                query=f"select distinct * from {self.INSTITULAC_USER}.{table}"
+                query = f"select distinct * from {self.INSTITULAC_USER}.{table}"
                 df = pd.read_sql(query, con=self.oracle_db)
-                data = df.to_json(orient='records')
+                data = df.to_json(orient=orient)
                 response = self.app.response_class(
                     response=data,
                     status=200,
@@ -213,11 +234,11 @@ class Scienti(HunabkuPluginBase):
                 return response
             else:
                 response = self.app.response_class(
-                    response=self.json.dumps({"error":"Bad Request","message":"table {table} not found on GRUBLAC, see available tables in tables_available","tables_available":self.grublac_tables}),
+                    response=self.json.dumps(
+                        {"error": "Bad Request", "message": "table {table} not found on GRUBLAC, see available tables in tables_available", "tables_available": self.grublac_tables}),
                     status=400,
                     mimetype='application/json'
                 )
                 return response
         else:
             return self.apikey_error()
-

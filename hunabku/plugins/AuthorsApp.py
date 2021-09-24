@@ -80,8 +80,6 @@ class AuthorsApp(HunabkuPluginBase):
 
         entry={
             "citations":0,
-            "H5":0,
-            "H":0,
             "yearly_citations":{}
         }
 
@@ -157,9 +155,6 @@ class AuthorsApp(HunabkuPluginBase):
                 cites_list.append(reg["citations_count"])
                 if reg["year_published"]>now.year-5:
                     cites5_list.append(reg["citations_count"])
-        entry["H5"]=self.hindex(cites5_list)
-        entry["H"]=self.hindex(cites_list)
-
         
         cites_pipeline.extend([
             {"$unwind":"$citations"},

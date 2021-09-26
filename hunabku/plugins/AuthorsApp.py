@@ -80,7 +80,8 @@ class AuthorsApp(HunabkuPluginBase):
 
         entry={
             "citations":0,
-            "yearly_citations":{}
+            "yearly_citations":{},
+            "geo_cites": {}
         }
 
         if start_year:
@@ -107,13 +108,11 @@ class AuthorsApp(HunabkuPluginBase):
                 if len(result)>0:
                     final_year=result[0]["year_published"]
 
-            pipeline=[
-                    {"$match":{"authors.id":ObjectId(idx)}}
-            ]
             if start_year and not end_year:
                 cites_pipeline=[
                     {"$match":{"year_published":{"$gte":start_year},"authors.id":ObjectId(idx)}}
                 ]
+                
             elif end_year and not start_year:
                 cites_pipeline=[
                     {"$match":{"year_published":{"$lte":end_year},"authors.id":ObjectId(idx)}}
@@ -128,7 +127,6 @@ class AuthorsApp(HunabkuPluginBase):
                 ]
         
         else:
-            pipeline=[]
             cites_pipeline=[]
             result=self.colav_db['documents'].find({},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
             if result:
@@ -141,21 +139,8 @@ class AuthorsApp(HunabkuPluginBase):
                 if len(result)>0:
                     final_year=result[0]["year_published"]
 
-        pipeline.extend([
-            {"$project":{
-                "_id":0,"year_published":1,"citations_count":1,"citations":1
-            }}
-        ])
+        geo_cites_pipeline = cites_pipeline[:] # a clone, not a copy 
 
-        cites5_list=[]
-        cites_list=[]
-        now=date.today()
-        for idx,reg in enumerate(self.colav_db["documents"].aggregate(pipeline)):
-            if reg["year_published"]<now.year:
-                cites_list.append(reg["citations_count"])
-                if reg["year_published"]>now.year-5:
-                    cites5_list.append(reg["citations_count"])
-        
         cites_pipeline.extend([
             {"$unwind":"$citations"},
             {"$lookup":{
@@ -174,9 +159,28 @@ class AuthorsApp(HunabkuPluginBase):
             }}
         ])
 
-        for idx,reg in enumerate(self.colav_db["documents"].aggregate(cites_pipeline)):
+
+        geo_cites_pipeline.extend([
+            {"$match":{"citations":{"$ne":[]}}},{"$project":{"citations":1}},
+            {"$unwind":"$citations"},{"$lookup":{"from":"documents","foreignField":"_id","localField":"citations","as":"citations"}},
+            {"$project":{"citations.authors.affiliations":1}},
+            {"$lookup":{"from":"institutions","foreignField":"_id","localField":"citations.authors.affiliations.id","as":"affiliation"}},
+            {"$project":{"affiliation.addresses.country":1,"affiliation.addresses.country_code":1}},
+            {"$unwind":"$affiliation"},{"$group":{"_id":"$affiliation.addresses.country_code","count":{"$sum":1}}}
+        ])
+
+
+
+        for reg in self.colav_db["documents"].aggregate(cites_pipeline):
             entry["citations"]+=reg["count"]
             entry["yearly_citations"][reg["_id"]]=reg["count"]
+
+        
+        for reg in self.colav_db["documents"].aggregate(geo_cites_pipeline):
+            entry["geo_cites"][reg["_id"][0]]=reg["count"]
+            
+
+        
 
         filters={
             "start_year":initial_year,

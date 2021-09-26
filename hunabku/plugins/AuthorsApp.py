@@ -18,7 +18,6 @@ class AuthorsApp(HunabkuPluginBase):
         if author:
             entry={"id":author["_id"],
                 "full_name":author["full_name"],
-                "type":"author",
                 "affiliation":[],
                 "country":"",
                 "country_code":"",
@@ -81,7 +80,7 @@ class AuthorsApp(HunabkuPluginBase):
         entry={
             "citations":0,
             "yearly_citations":{},
-            "geo_cites": {}
+            "geo": []
         }
 
         if start_year:
@@ -139,7 +138,7 @@ class AuthorsApp(HunabkuPluginBase):
                 if len(result)>0:
                     final_year=result[0]["year_published"]
 
-        geo_cites_pipeline = cites_pipeline[:] # a clone, not a copy 
+        geo_pipeline = cites_pipeline[:] # a clone
 
         cites_pipeline.extend([
             {"$unwind":"$citations"},
@@ -160,13 +159,15 @@ class AuthorsApp(HunabkuPluginBase):
         ])
 
 
-        geo_cites_pipeline.extend([
+        geo_pipeline.extend([
             {"$match":{"citations":{"$ne":[]}}},{"$project":{"citations":1}},
             {"$unwind":"$citations"},{"$lookup":{"from":"documents","foreignField":"_id","localField":"citations","as":"citations"}},
             {"$project":{"citations.authors.affiliations":1}},
             {"$lookup":{"from":"institutions","foreignField":"_id","localField":"citations.authors.affiliations.id","as":"affiliation"}},
             {"$project":{"affiliation.addresses.country":1,"affiliation.addresses.country_code":1}},
-            {"$unwind":"$affiliation"},{"$group":{"_id":"$affiliation.addresses.country_code","count":{"$sum":1}}}
+            {"$unwind":"$affiliation"},{"$group":{"_id":"$affiliation.addresses.country_code","count":{"$sum":1},
+             "country": {"$first": "$affiliation.addresses.country"}}},{"$project": {"country": 1,"_id":1,"count": 1, "log_count": {"$ln": "$count"}}},
+            {"$unwind": "$_id"}, {"$unwind": "$country"}
         ])
 
 
@@ -175,9 +176,13 @@ class AuthorsApp(HunabkuPluginBase):
             entry["citations"]+=reg["count"]
             entry["yearly_citations"][reg["_id"]]=reg["count"]
 
-        
-        for reg in self.colav_db["documents"].aggregate(geo_cites_pipeline):
-            entry["geo_cites"][reg["_id"][0]]=reg["count"]
+        for i, reg in enumerate(self.colav_db["documents"].aggregate(geo_pipeline)):
+            entry["geo"].append({"country": reg["country"],
+                                 "country_code": reg["_id"],
+                                 "count": reg["count"],
+                                 "log_count": reg["log_count"]}
+                                 )
+    
             
 
         

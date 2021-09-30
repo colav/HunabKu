@@ -37,6 +37,7 @@ class AuthorsApp(HunabkuPluginBase):
                     entry["logo"]=inst_db["logo_url"]
             sources=[]
             for ext in author["external_ids"]:
+
                 if ext["source"]=="researchid" and not "researcherid" in sources:
                     sources.append("researcherid")
                     entry["external_urls"].append({
@@ -57,6 +58,7 @@ class AuthorsApp(HunabkuPluginBase):
                     entry["external_urls"].append({
                         "source":"orcid",
                         "url":"https://orcid.org/"+ext["value"]})
+
 
             for branch in author["branches"]:
                 if branch["type"]=="faculty":

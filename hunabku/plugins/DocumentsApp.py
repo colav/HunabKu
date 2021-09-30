@@ -21,7 +21,7 @@ class DocumentsApp(HunabkuPluginBase):
                 "authors":[],
                 "open_access_status":document["open_access_status"],
                 "citations_count":document["citations_count"],
-                "external_ids":document["external_ids"],
+                "external_ids":[],
                 "external_urls":document["urls"]
             }
 
@@ -48,6 +48,28 @@ class DocumentsApp(HunabkuPluginBase):
                     author_entry["affiliations"].append({"name":aff_reg["name"],"id":aff_reg["_id"]})
 
                 entry["authors"].append(author_entry)
+            
+            for ext in document["external_ids"]:
+                if ext["source"]=="doi":
+                    entry["external_ids"].append({
+                        "id":ext["id"],
+                        "source":"doi",
+                        "url":"https://doi.org/"+ext["id"]
+                        
+                    })
+                if ext["source"]=="lens":
+                    entry["external_ids"].append({
+                        "id":ext["id"],
+                        "source":"lens",
+                        "url":"https://www.lens.org/lens/scholar/article/"+ext["id"]
+                    })
+                if ext["source"]=="scholar":
+                    entry["external_ids"].append({
+                        "id":ext["id"],
+                        "source":"scholar",
+                        "url":"https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=info%3A"+ext["id"]+
+                            "%3Ascholar.google.com"
+                    })    
             
             return {"data":entry,"filters":{}}
         else:

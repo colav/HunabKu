@@ -21,8 +21,6 @@ class AuthorsApp(HunabkuPluginBase):
                 "affiliation":[],
                 "country":"",
                 "country_code":"",
-                "faculty":{},
-                "department":{},
                 "group":{},
                 "external_urls":[],
             }
@@ -61,11 +59,7 @@ class AuthorsApp(HunabkuPluginBase):
 
 
             for branch in author["branches"]:
-                if branch["type"]=="faculty":
-                    entry["faculty"]=branch
-                elif branch["type"]=="department":
-                    entry["department"]=branch
-                elif branch["type"]=="group":
+                if branch["type"]=="group":
                     entry["group"]=branch
 
             return entry

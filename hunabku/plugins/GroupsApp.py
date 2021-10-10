@@ -10,6 +10,23 @@ class GroupsApp(HunabkuPluginBase):
         super().__init__(hunabku)
 
     def get_info(self,idx):
+        
+        result=self.colav_db['documents'].find({"authors.affiliations.branches.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
+        if result:
+            result=list(result)
+            if len(result)>0:
+                initial_year=result[0]["year_published"]
+        result=self.colav_db['documents'].find({"authors.affiliations.branches.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
+        if result:
+            result=list(result)
+            if len(result)>0:
+                final_year=result[0]["year_published"]
+        
+        filters={
+            "start_year":initial_year,
+            "end_year":final_year
+        }
+
         group = self.colav_db['branches'].find_one({"type":"group","_id":ObjectId(idx)})
         if group:
             entry={"id":group["_id"],
@@ -38,7 +55,7 @@ class GroupsApp(HunabkuPluginBase):
                     "id":str(author["_id"])
                 }
                 entry["authors"].append(author_entry)
-            return entry
+            return {"data": entry, "filters": filters }
         else:
             return None
     
@@ -67,16 +84,7 @@ class GroupsApp(HunabkuPluginBase):
                 print("Could not convert end year to int")
                 return None
         if idx:
-            result=self.colav_db['documents'].find({"authors.affiliations.branches.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({"authors.affiliations.branches.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
+
 
             pipeline=[
                     {"$match":{"authors.affiliations.branches.id":ObjectId(idx)}}
@@ -98,20 +106,7 @@ class GroupsApp(HunabkuPluginBase):
                 cites_pipeline=[
                     {"$match":{"authors.affiliations.branches.id":ObjectId(idx)}}
                 ]
-                
-        else:
-            pipeline=[]
-            cites_pipeline=[]
-            result=self.colav_db['documents'].find({},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
+
 
         pipeline.extend([
             {"$project":{
@@ -119,14 +114,7 @@ class GroupsApp(HunabkuPluginBase):
             }}
         ])
 
-        cites5_list=[]
-        cites_list=[]
-        now=date.today()
-        for idx,reg in enumerate(self.colav_db["documents"].aggregate(pipeline)):
-            if reg["year_published"]<now.year:
-                cites_list.append(reg["citations_count"])
-                if reg["year_published"]>now.year-5:
-                    cites5_list.append(reg["citations_count"])
+
 
 
         cites_pipeline.extend([
@@ -151,11 +139,42 @@ class GroupsApp(HunabkuPluginBase):
             entry["citations"]+=reg["count"]
             entry["yearly_citations"][reg["_id"]]=reg["count"]
 
-        filters={
-            "start_year":initial_year,
-            "end_year":final_year
-        }
-        return {"data":entry,"filters":filters}
+
+        return {"data": entry}
+
+    def get_authors(self,idx=None):
+        if idx:
+
+            pipeline=[
+                {"$match":{"authors.affiliations.branches.id":ObjectId(idx)}}
+            ]
+
+            pipeline.extend([
+                {"$unwind":"$authors"},
+                {"$match":{"authors.affiliations.branches.id":ObjectId(idx)}},
+                {"$group":{"_id":"$authors.id","papers_count":{"$sum":1},"citations_count":{"$sum":"$citations_count"},"author":{"$first":"$authors"}}},
+                {"$sort":{"citations_count":-1}},
+                {"$project":{"_id":1,"author.full_name":1,"author.affiliations.name":1,"papers_count":1,"citations_count":1}},
+
+
+            ])
+
+            result= self.colav_db["documents"].aggregate(pipeline)
+        
+            entry = []
+
+            for reg in result:
+                entry.append({
+                    "id":reg["_id"],
+                    "name":reg["author"]["full_name"],
+                    "papers_count":reg["papers_count"],
+                    "citations_count":reg["citations_count"],
+                    "affiliation":reg["author"]["affiliations"][0]["name"]
+                })
+            
+        return entry
+
+
 
     def get_coauthors(self,idx=None,start_year=None,end_year=None):
         initial_year=0
@@ -177,16 +196,7 @@ class GroupsApp(HunabkuPluginBase):
             pipeline=[
                 {"$match":{"authors.affiliations.branches.id":ObjectId(idx)}}
             ]
-            result=self.colav_db['documents'].find({"authors.affiliations.branches.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({"authors.affiliations.branches.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
+ 
             if start_year and not end_year:
                 pipeline=[
                     {"$match":{"year_published":{"$gte":start_year},"authors.affiliations.branches.id":ObjectId(idx)}}
@@ -200,22 +210,10 @@ class GroupsApp(HunabkuPluginBase):
                     {"$match":{"year_published":{"$gte":start_year,"$lte":end_year},"authors.affiliations.branches.id":ObjectId(idx)}}
                 ]
                 
-        else:
-            pipeline=[]
-            result=self.colav_db['documents'].find({},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
 
+        #Meter esto en info
         pipeline.extend([
             {"$unwind":"$authors"},
-            {"$unwind":"$authors.affiliations"},
             {"$group":{"_id":"$authors.id","count":{"$sum":1}}},
             {"$sort":{"count":-1}},
             {"$lookup":{"from":"authors","localField":"_id","foreignField":"_id","as":"author"}},
@@ -225,9 +223,7 @@ class GroupsApp(HunabkuPluginBase):
 
         entry={
             "coauthors":[],
-            "geo":[],
-            "coauthors_network":{"nodes":load(open("./nodes.p","rb")),"edges":load(open("./edges.p","rb"))},
-            "institution_network":{"nodes":load(open("./nodes.p","rb")),"edges":load(open("./edges.p","rb"))}
+            "geo":[]
         }
 
         entry["coauthors"]=[
@@ -248,7 +244,6 @@ class GroupsApp(HunabkuPluginBase):
             {"$sort":{"count":-1}}
         ])
         for reg in self.colav_db["documents"].aggregate(pipeline):
-            #print(reg)
             if str(reg["_id"])==idx:
                 continue
             if not "country_code" in reg["affiliation"]["addresses"].keys():
@@ -270,12 +265,9 @@ class GroupsApp(HunabkuPluginBase):
             item["log_count"]=log(item["count"])
         entry["geo"]=countries
                         
-        filters={
-            "start_year":initial_year,
-            "end_year":final_year
-        }
 
-        return {"data":entry,"filters":filters}
+
+        return {"data":entry}
 
 
 
@@ -384,17 +376,7 @@ class GroupsApp(HunabkuPluginBase):
                 print("Could not convert end year to int")
                 return None
         if idx:
-            result=self.colav_db['documents'].find({"authors.affiliations.branches.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({"authors.affiliations.branches.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
+
             if start_year and not end_year:
                 cursor=self.colav_db['documents'].find({"year_published":{"$gte":start_year},"authors.affiliations.branches.id":ObjectId(idx)})
                 venn_query={"year_published":{"$gte":start_year},"authors.affiliations.branches.id":ObjectId(idx)}
@@ -514,10 +496,7 @@ class GroupsApp(HunabkuPluginBase):
             "count":len(papers),
             "page":page,
             "total_results":total,
-            "filters":{
-                "start_year":initial_year,
-                "end_year":final_year
-                }
+
             }
 
     def get_csv(self,idx=None,start_year=None,end_year=None,sort=None,direction=None):
@@ -883,6 +862,7 @@ class GroupsApp(HunabkuPluginBase):
                 status=204,
                 mimetype='application/json'
                 )
+
         elif data=="citations":
             idx = self.request.args.get('id')
             start_year=self.request.args.get('start_year')
@@ -900,6 +880,26 @@ class GroupsApp(HunabkuPluginBase):
                 status=204,
                 mimetype='application/json'
                 )
+
+        elif data=="authors":
+            idx = self.request.args.get('id')
+
+            authors = self.get_authors(idx)
+
+            if authors:
+                response = self.app.response_class(
+                response=self.json.dumps(authors),
+                status=200,
+                mimetype='application/json'
+                )
+            else:
+                response = self.app.response_class(
+                response=self.json.dumps({"status":"Request returned empty"}),
+                status=204,
+                mimetype='application/json'
+                )
+
+        
         elif data=="coauthors":
             idx = self.request.args.get('id')
             start_year=self.request.args.get('start_year')
@@ -917,41 +917,7 @@ class GroupsApp(HunabkuPluginBase):
                 status=204,
                 mimetype='application/json'
                 )
-        elif data=="colleges":
-            idx = self.request.args.get('id')
-            start_year=self.request.args.get('start_year')
-            end_year=self.request.args.get('end_year')
-            colleges=self.get_invisible_colleges(idx,start_year,end_year)
-            if colleges:
-                response = self.app.response_class(
-                response=self.json.dumps(colleges),
-                status=200,
-                mimetype='application/json'
-                )
-            else:
-                response = self.app.response_class(
-                response=self.json.dumps({"status":"Request returned empty"}),
-                status=204,
-                mimetype='application/json'
-                )
-        elif data=="college":
-            idx = self.request.args.get('id')
-            icidx = self.request.args.get('icid')
-            start_year=self.request.args.get('start_year')
-            end_year=self.request.args.get('end_year')
-            college=self.get_invisible_college_info(idx,icidx,start_year,end_year)
-            if college:
-                response = self.app.response_class(
-                response=self.json.dumps(college),
-                status=200,
-                mimetype='application/json'
-                )
-            else:
-                response = self.app.response_class(
-                response=self.json.dumps({"status":"Request returned empty"}),
-                status=204,
-                mimetype='application/json'
-                )
+
         elif data=="csv":
             idx = self.request.args.get('id')
             start_year=self.request.args.get('start_year')

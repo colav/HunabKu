@@ -11,8 +11,22 @@ class AuthorsApp(HunabkuPluginBase):
         super().__init__(hunabku)
 
     def get_info(self,idx):
+        if idx:
+            result=self.colav_db['documents'].find({"authors.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
+            if result:
+                result=list(result)
+                if len(result)>0:
+                    initial_year=result[0]["year_published"]
+            result=self.colav_db['documents'].find({"authors.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
+            if result:
+                result=list(result)
+                if len(result)>0:
+                    final_year=result[0]["year_published"]
 
-        author = self.colav_db['authors'].find_one({"_id":ObjectId(idx)})
+        filters={
+            "start_year":initial_year,
+            "end_year":final_year
+        }
 
         author = self.colav_db['authors'].find_one({"_id":ObjectId(idx)})
         if author:
@@ -62,7 +76,7 @@ class AuthorsApp(HunabkuPluginBase):
                 if branch["type"]=="group":
                     entry["group"]=branch
 
-            return entry
+            return {"data": entry, "filters": filters }
         else:
             return None
 
@@ -91,17 +105,7 @@ class AuthorsApp(HunabkuPluginBase):
             except:
                 print("Could not convert end year to int")
                 return None
-        if idx:
-            result=self.colav_db['documents'].find({"authors.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({"authors.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
+
 
             if start_year and not end_year:
                 cites_pipeline=[
@@ -121,18 +125,7 @@ class AuthorsApp(HunabkuPluginBase):
                     {"$match":{"authors.id":ObjectId(idx)}}
                 ]
         
-        else:
-            cites_pipeline=[]
-            result=self.colav_db['documents'].find({},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
+
 
         geo_pipeline = cites_pipeline[:] # a clone
 
@@ -181,13 +174,8 @@ class AuthorsApp(HunabkuPluginBase):
     
             
 
-        
 
-        filters={
-            "start_year":initial_year,
-            "end_year":final_year
-        }
-        return {"data":entry,"filters":filters}
+        return {"data":entry}
 
     def get_coauthors(self,idx=None,start_year=None,end_year=None):
         initial_year=0
@@ -209,16 +197,8 @@ class AuthorsApp(HunabkuPluginBase):
             pipeline=[
                 {"$match":{"authors.id":ObjectId(idx)}}
             ]
-            result=self.colav_db['documents'].find({"authors.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({"authors.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
+
+
             if start_year and not end_year:
                 pipeline=[
                     {"$match":{"year_published":{"$gte":start_year},"authors.id":ObjectId(idx)}}
@@ -232,18 +212,7 @@ class AuthorsApp(HunabkuPluginBase):
                     {"$match":{"year_published":{"$gte":start_year,"$lte":end_year},"authors.id":ObjectId(idx)}}
                 ]
                 
-        else:
-            pipeline=[]
-            result=self.colav_db['documents'].find({},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
+
 
         pipeline.extend([
             {"$unwind":"$authors"},
@@ -501,12 +470,9 @@ class AuthorsApp(HunabkuPluginBase):
         entry["coauthors_network"]={"nodes":nodes,"edges":edges}
         entry["institution_network"]={"nodes":aff_nodes,"edges":aff_edges}
 
-        filters={
-            "start_year":initial_year,
-            "end_year":final_year
-        }
 
-        return {"data":entry,"filters":filters}
+
+        return {"data":entry}
 
     def get_venn(self,venn_query):
         venn_source={
@@ -612,17 +578,9 @@ class AuthorsApp(HunabkuPluginBase):
             except:
                 print("Could not convert end year to int")
                 return None
+        
         if idx:
-            result=self.colav_db['documents'].find({"authors.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",ASCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    initial_year=result[0]["year_published"]
-            result=self.colav_db['documents'].find({"authors.id":ObjectId(idx)},{"year_published":1}).sort([("year_published",DESCENDING)]).limit(1)
-            if result:
-                result=list(result)
-                if len(result)>0:
-                    final_year=result[0]["year_published"]
+
             if start_year and not end_year:
                 cursor=self.colav_db['documents'].find({"year_published":{"$gte":start_year},"authors.id":ObjectId(idx)})
                 venn_query={"year_published":{"$gte":start_year},"authors.id":ObjectId(idx)}
@@ -734,10 +692,7 @@ class AuthorsApp(HunabkuPluginBase):
             "total_results":total,
             "venn_source":self.get_venn(venn_query),
             "open_access":open_access,
-            "filters":{
-                "start_year":initial_year,
-                "end_year":final_year
-            }
+
         }
     
     def get_csv(self,idx=None,start_year=None,end_year=None,sort=None,direction=None):

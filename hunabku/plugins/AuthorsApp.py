@@ -93,6 +93,7 @@ class AuthorsApp(HunabkuPluginBase):
             "geo": []
         }
 
+
         if start_year:
             try:
                 start_year=int(start_year)
@@ -107,23 +108,23 @@ class AuthorsApp(HunabkuPluginBase):
                 return None
 
 
-            if start_year and not end_year:
+        if start_year and not end_year:
                 cites_pipeline=[
                     {"$match":{"year_published":{"$gte":start_year},"authors.id":ObjectId(idx)}}
                 ]
                 
-            elif end_year and not start_year:
+        elif end_year and not start_year:
                 cites_pipeline=[
                     {"$match":{"year_published":{"$lte":end_year},"authors.id":ObjectId(idx)}}
                 ]
-            elif start_year and end_year:
+        elif start_year and end_year:
                 cites_pipeline=[
                     {"$match":{"year_published":{"$gte":start_year,"$lte":end_year},"authors.id":ObjectId(idx)}}
                 ]
-            else:
-                cites_pipeline=[
-                    {"$match":{"authors.id":ObjectId(idx)}}
-                ]
+        else:
+            cites_pipeline=[
+                {"$match":{"authors.id":ObjectId(idx)}}
+            ]
         
 
 

@@ -28,6 +28,7 @@ class AuthorsApp(HunabkuPluginBase):
             "end_year":final_year
         }
 
+
         author = self.colav_db['authors'].find_one({"_id":ObjectId(idx)})
         if author:
             entry={"id":author["_id"],
@@ -84,8 +85,6 @@ class AuthorsApp(HunabkuPluginBase):
         return sum(x >= i + 1 for i, x in enumerate(sorted(list(citation_list), reverse=True)))
     
     def get_citations(self,idx=None,start_year=None,end_year=None):
-        initial_year=0
-        final_year=0
 
         entry={
             "citations":0,
@@ -668,6 +667,7 @@ class AuthorsApp(HunabkuPluginBase):
                 affiliations=[]
                 for aff in author["affiliations"]:
                     aff_entry={}
+                    group_entry={}
                     aff_db=self.colav_db["institutions"].find_one({"_id":aff["id"]})
                     if aff_db:
                         aff_entry={"name":aff_db["name"],"id":aff_db["_id"]}
@@ -676,9 +676,10 @@ class AuthorsApp(HunabkuPluginBase):
                         for branch in aff["branches"]:
                             if "id" in branch.keys():
                                 branch_db=self.colav_db["branches"].find_one({"_id":branch["id"]})
-                                if branch_db:
-                                    branches.append({"name":branch_db["name"],"type":branch_db["type"],"id":branch_db["_id"]})
-                    aff_entry["branches"]=branches
+                                if branch_db and branch_db["type"] != "department" and branch_db["type"]!="faculty":
+                                    group_entry= ({"name":branch_db["name"],"type":branch_db["type"],"id":branch_db["_id"]})
+                                    affiliations.append(group_entry)
+
                     affiliations.append(aff_entry)
                 au_entry["affiliations"]=affiliations
                 authors.append(au_entry)

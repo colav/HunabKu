@@ -235,7 +235,7 @@ class Scienti(HunabkuPluginBase):
             else:
                 response = self.app.response_class(
                     response=self.json.dumps(
-                        {"error": "Bad Request", "message": "table {table} not found on GRUBLAC, see available tables in tables_available", "tables_available": self.grublac_tables}),
+                        {"error": "Bad Request", "message": "table {table} not found on INSTITULAC, see available tables in tables_available", "tables_available": self.grublac_tables}),
                     status=400,
                     mimetype='application/json'
                 )

@@ -7,7 +7,7 @@ import logging
 class Config:
     """
     Config class provides a way to create and manage a configuration object in Python.
-    This class uses the __setattr__, __getattr__, keys, __getitem__, __setitem__, get, 
+    This class uses the __setattr__, __getattr__, keys, __getitem__, __setitem__, get,
     and update methods to enable easy access and modification of configuration values.
 
     Overall, the Config class provides a convenient way to manage configuration values
@@ -156,7 +156,8 @@ class Param:
             sys.exit(1)
 
         if len(kwargs) > 2:
-            print("ERROR: A maximum of two parameters can be passed, the parameter and the doc for the parameter ex: Param(db='test', doc='databaset name')")
+            print("ERROR: A maximum of two parameters can be passed,"
+                  "the parameter and the doc for the parameter ex: Param(db='test', doc='databaset name')")
             sys.exit(1)
 
         name = list(kwargs.keys())[0]
@@ -166,8 +167,9 @@ class Param:
                 doc = kwargs["doc"]
                 del kwargs["doc"]
             else:
-                print(f"ERROR: in Parameter {name}, doc parameter not provide." + os.linesep +
-                      "       Two parameters can be provided but the second one have to be 'doc' ex: Param(db='test', doc='databaset name')")
+                print(f"ERROR: in Parameter {name}, doc parameter not provide. {os.linesep}"
+                      "Two parameters can be provided but the second one have to be 'doc' "
+                      "ex: Param(db='test', doc='databaset name')")
                 sys.exit(1)
 
         name = list(kwargs.keys())[0]
@@ -211,13 +213,19 @@ class ConfigGenerator:
     config.apidoc += Param(apidoc_dir='hunabku_website',
                            doc="apidocs output directoy"
                            )
+    config.apidoc += Param(use_https=False,
+                           doc="apidocs output uses http/https"
+                           )
+    config.apidoc += Param(show_port=True,
+                           doc="apidocs output show port of the server"
+                           )
 
     def generate_config(self, output_file, hunabku, overwrite):
         if len(hunabku.plugins) == 0:
             hunabku.load_plugins(verbose=False)
 
-        output = "from hunabku.Config import Config"+os.linesep
-        output += "config = Config()"+os.linesep*2
+        output = "from hunabku.Config import Config" + os.linesep
+        output += "config = Config()" + os.linesep * 2
         output += "######################################" + os.linesep
         output += "# Hunabku Server config options below" + os.linesep
         output += "######################################" + os.linesep
@@ -267,18 +275,18 @@ class ConfigGenerator:
         output = ""
         for key in config_dict.keys():
             last = key.split(".")[-1]
-            output += f"# {last}"+os.linesep
+            output += f"# {last}" + os.linesep
             doc = config_dict[key]["doc"]
             value = config_dict[key]["value"]
 
             comments = doc.split(os.linesep)
             for comment in comments:
-                output += f"#{comment}"+os.linesep
+                output += f"#{comment}" + os.linesep
 
             if isinstance(value, str):
-                output += f'{key} = "{value}"'+os.linesep*2
+                output += f'{key} = "{value}"' + os.linesep * 2
             else:
-                output += f'{key} = {value}'+os.linesep*2
+                output += f'{key} = {value}' + os.linesep * 2
         return output
 
     def parse_config(self, config: Config, root=True) -> dict:

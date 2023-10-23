@@ -24,10 +24,13 @@ import pkgutil
 
 class Hunabku:
     """
-    Class to serve papers information store in a mongodb database through an API using flask.
+    Hunabku class is the main class to start the server,
+    it allows to load plugins, generate documentation and start the server.
+    The server can be started with the following command:
+    hunabku_server --config config.py
 
-    example:
-    http://0.0.0.0:5000/data/redalyc?init=1&end&apikey=pl0ok9ij8uh7yg
+    by default the server will start in http://0.0.0.0:8080
+
     """
     config = ConfigGenerator.config
 
@@ -49,10 +52,19 @@ class Hunabku:
         self.apidoc_templates_dir = self.apidoc_dir + '/templates'
         self.apidoc_config_dir = self.apidoc_dir + '/config'
         self.apidoc_config_data = {}
-        self.apidoc_config_data['url'] = 'http://' + \
-            config.host + ':' + str(config.port)
-        self.apidoc_config_data['sampleUrl'] = 'http://' + \
-            config.host + ':' + str(config.port)
+        if self.config.apidoc.use_https:
+            protocol = 'https'
+        else:
+            protocol = 'http'
+        if self.config.apidoc.show_port:
+            port = ':' + str(self.config.port)
+        else:
+            port = ''
+        self.apidoc_config_data['url'] = f'{protocol}://' + \
+            config.host + port
+        self.apidoc_config_data['sampleUrl'] = f'{protocol}://' + \
+            config.host + port
+
         self.apidoc_config_data['header'] = {}
         self.apidoc_config_data['header']['filename'] = self.apidoc_config_dir + \
             '/apidoc-header.md'
@@ -65,7 +77,7 @@ class Hunabku:
         self.logger = logging.getLogger(__name__)
         self.set_info_level(config["info_level"])
         self.app = Flask(
-            'hanubku',
+            "Hunabku",
             static_folder=self.apidoc_static_dir,
             static_url_path='/',
             template_folder=self.apidoc_templates_dir)
@@ -177,7 +189,7 @@ class Hunabku:
                 spec = importlib.util.spec_from_file_location(mname, path)
                 module = spec.loader.load_module()
                 for cname, plugin_class in inspect.getmembers(module):
-                    if inspect.isclass(plugin_class) and issubclass(plugin_class, HunabkuPluginBase) and plugin_class is not HunabkuPluginBase:
+                    if inspect.isclass(plugin_class) and issubclass(plugin_class, HunabkuPluginBase) and plugin_class is not HunabkuPluginBase: # noqa  E501
                         if verbose:
                             self.logger.warning(
                                 f'------ Registering plugin class: {mname}.{cname}')
@@ -210,6 +222,11 @@ class Hunabku:
         Allows to check in the syntaxis in the docstring comment is right
         for apidoc  files generation.
         The the syntax is wrong, the Hunabku server can not start.
+
+        Parameters:
+        ___________
+        plugin_file: str
+            path to the plugin file to check (python file)
         """
         args = ['apidoc', '-c', self.apidoc_config_dir + os.path.sep + "apidoc.json", '-i',
                 str(pathlib.Path(plugin_file).parent.absolute()),
@@ -228,14 +245,21 @@ class Hunabku:
 
     def generate_doc(self, timeout=1, maxtries=5):
         """
-        this method allows to generated apidocs documentation parsing plugin files
+        This method allows to generated apidocs documentation parsing plugin files.
+
+        Parameters:
+        ___________
+        timeout: int
+            timeout in seconds to wait for the process to finish
+        maxtries: int
+            max number of tries to wait for the process to finish
         """
         self.logger.warning('-----------------------')
         self.logger.warning('------ Creating documentation')
 
         rmtree(self.apidoc_static_dir, ignore_errors=True)
-        args = ['apidoc', '-c', self.apidoc_config_dir +
-                os.path.sep + "apidoc.json"]
+        args = ['apidoc', '-c',
+                self.apidoc_config_dir + os.path.sep + "apidoc.json"]
 
         for plugin in self.plugins:
             self.check_apidoc_syntax(plugin['path'])

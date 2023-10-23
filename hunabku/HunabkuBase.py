@@ -54,7 +54,8 @@ def endpoint(path, methods):
 
         if Globals.verbose:
             print(
-                f'------ Adding endpoint {path} with HTTP(S) methods {str(methods)} from class = {class_name} class method = {func_name}')
+                f'------ Adding endpoint {path} with HTTP(S) methods {str(methods)}'
+                f' from class = {class_name} class method = {func_name}')
         if package_name not in Globals.endpoints:
             Globals.endpoints[package_name] = []
         Globals.endpoints[package_name].append(
@@ -182,8 +183,10 @@ class HunabkuPluginBase(object):
                 if endpoint != register:
                     if endpoint["path"] == register["path"]:
                         print(
-                            f"ERROR: can't not load plugin, package {package_name} class {class_name} class_method {endpoint['func_name']} file {endpoint['file']} "
-                            f"because the path {endpoint['path']} is already loaded in plugin: package {package_name} class {register['class_name']} "
+                            f"ERROR: can't not load plugin, package {package_name} "
+                            f"class {class_name} class_method {endpoint['func_name']} file {endpoint['file']} "
+                            f"because the path {endpoint['path']} is already loaded in plugin: "
+                            f"package {package_name} class {register['class_name']} "
                             f"class_method {register['func_name']} file {register['file']}")
                         return False
         plugins.remove(package_name)
@@ -193,8 +196,10 @@ class HunabkuPluginBase(object):
                 for register in Globals.endpoints[plugin]:
                     if endpoint["path"] == register['path']:
                         print(
-                            f"ERROR: can't not load plugin, package {package_name} class {class_name} class_method {endpoint['func_name']} file {endpoint['file']} "
-                            f"because the path {endpoint['path']} is already loaded in plugin: package {plugin} class {register['class_name']} "
+                            f"ERROR: can't not load plugin, package {package_name} "
+                            f"class {class_name} class_method {endpoint['func_name']} file {endpoint['file']} "
+                            f"because the path {endpoint['path']} is already loaded in plugin: "
+                            f"package {plugin} class {register['class_name']} "
                             f"class_method {register['func_name']} file {register['file']}")
                         return False
         return True

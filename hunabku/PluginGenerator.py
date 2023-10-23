@@ -66,7 +66,7 @@ class PluginGenerator:
         readme = os.path.join(output_path, "README.md")
         setup = os.path.join(output_path, "setup.py")
         manifest = os.path.join(output_path, "MANIFEST.in")
-        package_folder_old = os.path.join(output_path, f"hunabku_template")
+        package_folder_old = os.path.join(output_path, "hunabku_template")
         package_folder_new = os.path.join(
             output_path, f"{self.prefix}_{self.name}".lower())
         package_folder_endpoints = os.path.join(
